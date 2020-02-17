@@ -1,0 +1,98 @@
+
+global proc importLSystem(string $filename, string $fileType) 
+{ 
+	file -import $filename; 
+}
+
+global proc createLSystem(string $ip_grammar, float $ip_stepSize, float $ip_angle, int $ip_iter) 
+{
+	//LSystemCmd -ss $ip_stepSize -a $ip_angle -g $ip_grammar -i $ip_iter;
+	LSystemCmd -ss 5 -a 30 -g "F-[+F]-[-F]" -i 1;
+}
+
+global proc browseFiles() { 
+	
+	string $filename = `fileDialog -m 0`; 
+	
+	int $fileid; 
+
+	$fileid = fopen($filename, "r"); 
+	string $wholeFile = "";
+	string $nextLine = `fgetline $fileid`; 
+	while(size($nextLine) > 0)
+	{
+		$wholeFile = $wholeFile + $nextLine;
+		$nextLine = `fgetline $fileid`; 
+	} 
+	scrollField -edit -text $wholeFile patternDisplay;
+}
+
+proc float getSliderValue(string $sliderName) {
+	float $value = `floatSliderGrp -q -v $sliderName` ; 
+	return $value;
+}
+
+proc string getScrollTextValue() {
+	string $value = `scrollField -q -tx patternDisplay`;
+	return $value;
+}
+
+global proc loadLSystem() {
+	global string $stepSlider;
+	global string $angleSlider;
+	global string $iterSlider;
+	string $grammar = getScrollTextValue();
+	float $stepValue = getSliderValue($stepSlider);
+	float $angleValue = getSliderValue($angleSlider);
+	float $iterValue = getSliderValue($iterSlider);
+	LSystemCmd -ss $stepValue -a $angleValue -g $grammar -i $iterValue;
+}
+
+global proc clearAll(){
+	delete `ls -typ nurbsCurve`;
+	delete `ls -typ transform`;
+}
+
+global proc createLSystemNode() {
+	createNode transform -n LSystem1; 
+	createNode mesh -n LSystemShape1 -p LSystem1; 
+	sets -add initialShadingGroup LSystemShape1; createNode LSystemNode -n LSystemNode1; 
+	connectAttr time1.outTime LSystemNode1.time; 
+	connectAttr LSystemNode1.outputMesh LSystemShape1.inMesh;
+}
+
+global proc createWindow() 
+{
+	global string $grammar;
+	global float $stepSize;
+	global float $angle;
+	global int $iter;
+
+	string $window = `window -title "L-SYSTEMS" -widthHeight 500 500 -titleBar true -backgroundColor 0.6 0.6 0.6`;
+	frameLayout -label "Grammar" -collapsable true -collapse false;
+		scrollField -wordWrap true -text "Enter grammar here.." patternDisplay;
+		button -label "Browse" -width 25 -height 25 -align "right" -command "browseFiles()";
+	setParent ..;
+	frameLayout -label "LSystem Parameters" -collapsable true -collapse false;
+		columnLayout; 
+			$iter = `floatSliderGrp -label "Iterations" -field true -minValue 0.0 -maxValue 100.0- fieldMinValue 0.0 - fieldMaxValue 100.0 -value 0` ;
+			$stepSize = `floatSliderGrp -label "Default Step Size" -field true -minValue 0.0 -maxValue 10.0- fieldMinValue 0.0 - fieldMaxValue 100.0 -value 0` ;
+			$angle = `floatSliderGrp -label "Default Angle" -field true -minValue 0.0 -maxValue 10.0- fieldMinValue 0.0 - fieldMaxValue 100.0 -value 0` ;
+		setParent ..; 
+	setParent ..; 
+
+	rowLayout -numberOfColumns 2 -columnWidth2 200 200;
+		button -label "Create" -width 60 -height 30 -align "right" -command ("createLSystem($grammar, $stepSize, $angle, $iter)");
+		button -label "Cancel" -width 60 -height 30 -align "left" -command ("deleteUI -window " + $window);
+	setParent ..; 
+
+	showWindow;
+};
+
+
+
+global string $gMainWindow;
+setParent $gMainWindow;
+menu -label "LSystemNode" -parent $gMainWindow -tearOff on; menuItem -label "LSystemCommand" -command ("createWindow");
+
+menuItem -label "LSystemNode" -command ("createLSystemNode()");
